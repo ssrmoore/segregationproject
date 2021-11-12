@@ -1,5 +1,5 @@
 ---
-title: "mass incarceration research"
+title: "segregation lab"
 author: "Sophie Moore"
 date: "3/2/2021"
 output: html_document
@@ -11,10 +11,157 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r}
-library(rvest)
-library(tidyverse)
-url <- "https://www.prisonstudies.org/highest-to-lowest/prison-population-total?field_region_taxonomy_tid=All"
-prisonData <- as.data.frame(read_html(url) %>% html_table())
+``` {r}
+# Load library
+library(plot.matrix)
+
+# Set size of the world
+rows <- 30
+columns <- 50
+
+# Choose number of people
+vacantprop <- 0.2
+group1prop <- .5
+group1num <- round((1 - vacantprop)*group1prop*rows*columns)
+group2num <- round((1 - vacantprop)*(1-group1prop)*rows*columns)
+
+# Set likeness threshold; if below, agent will move to new location
+thresh <- 0.33
+
+# Initialize empty world
+world <- matrix(0,rows,columns)
+initialpos <- sample(1:(rows*columns),group1num+group2num)
+world[initialpos[1:group1num]] <- 1
+world[initialpos[(group1num+1):(group1num+group2num)]] <- 2
+
+# Visualize initial condition
+plot(world,col=c("white","blue","green"))
+nBefore <- 0
+numPeopleBefore <- 0
+
+for(person in 1:(rows*columns)){
+  r <- ((person-1) %% rows) + 1
+  c <- floor((person-1) / rows) + 1
+  if(!(world[r,c] == 0)){
+    if (r==1 & c == 1){
+      neighborcoords <- rbind(c(r,c+1),c(r+1,c),c(r+1,c+1))
+    } else if (r == rows & c == 1){
+      neighborcoords <- rbind(c(r-1,c),c(r-1,c+1),c(r,c+1))
+    } else if (r == 1 & c == columns) {
+      neighborcoords <- rbind(c(r,c-1),c(r-1,c),c(r-1,c-1))
+    } else if (r == rows & c == columns) {
+      neighborcoords <- rbind(c(r,c-1),c(r-1,c),c(r-1,c-1))
+    } else if (r == 1) {
+      neighborcoords <- rbind(c(r,c-1),c(r+1,c-1),c(r+1,c), c(r+1,c+1), c(r,c+1))
+    } else if (r == rows) {
+      neighborcoords <- rbind(c(r,c-1),c(r-1,c-1),c(r-1,c),c(r-1,c+1),c(r,c+1))
+    } else if (c == 1) {
+      neighborcoords <- rbind(c(r-1,c),c(r-1,c+1),c(r,c+1),c(r+1,c+1),c(r+1,c))
+    } else if (c == columns) {
+      neighborcoords <- rbind(c(r-1,c),c(r-1,c-1),c(r,c-1),c(r+1,c-1),c(r+1,c))
+    } else {
+      neighborcoords <- rbind(c(r-1,c-1),c(r-1,c),c(r-1,c+1),c(r,c-1),c(r,c+1),c(r+1,c-1),c(r+1,c),c(r+1,c+1))
+    }
+    
+    neighborvals <- world[(neighborcoords[,2]-1)*rows+neighborcoords[,1]]
+    self <- world[r,c]
+    propsim <- sum(neighborvals == self)/sum(neighborvals != 0)
+    if (sum(neighborvals != 0) == 0) {
+      propsim <- 1
+    }
+  }
+  nBefore <- nBefore + propsim
+  numPeopleBefore <- numPeopleBefore + 1
+  
+}
+
+
+
+for (i in 1:100000){
+  # Pick a random nonzero element
+  person <- sample(which(world != 0),1)
+  r <- ((person-1) %% rows) + 1
+  c <- floor((person-1) / rows) + 1
+  if (r==1 & c == 1){
+    neighborcoords <- rbind(c(r,c+1),c(r+1,c),c(r+1,c+1))
+  } else if (r == rows & c == 1){
+    neighborcoords <- rbind(c(r-1,c),c(r-1,c+1),c(r,c+1))
+  } else if (r == 1 & c == columns) {
+    neighborcoords <- rbind(c(r,c-1),c(r-1,c),c(r-1,c-1))
+  } else if (r == rows & c == columns) {
+    neighborcoords <- rbind(c(r,c-1),c(r-1,c),c(r-1,c-1))
+  } else if (r == 1) {
+    neighborcoords <- rbind(c(r,c-1),c(r+1,c-1),c(r+1,c), c(r+1,c+1), c(r,c+1))
+  } else if (r == rows) {
+    neighborcoords <- rbind(c(r,c-1),c(r-1,c-1),c(r-1,c),c(r-1,c+1),c(r,c+1))
+  } else if (c == 1) {
+    neighborcoords <- rbind(c(r-1,c),c(r-1,c+1),c(r,c+1),c(r+1,c+1),c(r+1,c))
+  } else if (c == columns) {
+    neighborcoords <- rbind(c(r-1,c),c(r-1,c-1),c(r,c-1),c(r+1,c-1),c(r+1,c))
+  } else {
+    neighborcoords <- rbind(c(r-1,c-1),c(r-1,c),c(r-1,c+1),c(r,c-1),c(r,c+1),c(r+1,c-1),c(r+1,c),c(r+1,c+1))
+}
+
+    neighborvals <- world[(neighborcoords[,2]-1)*rows+neighborcoords[,1]]
+    self <- world[r,c]
+    propsim <- sum(neighborvals == self)/sum(neighborvals != 0)
+    if (sum(neighborvals != 0) == 0) {
+      propsim <- 1
+    }
+    if (propsim < thresh){
+      world[r,c] <- 0
+      newhome <- sample(which(world == 0),1)
+      world[newhome] <- self
+    }
+
+}
+
+# Visualize final condition
+plot(world,col=c("white","blue","green"))
+
+n <- 0
+numPeople <- 0
+# Attempt to calculate proportion of neighbors not like them
+for(person in 1:(rows*columns)){
+  r <- ((person-1) %% rows) + 1
+  c <- floor((person-1) / rows) + 1
+  if(!(world[r,c] == 0)){
+    if (r==1 & c == 1){
+      neighborcoords <- rbind(c(r,c+1),c(r+1,c),c(r+1,c+1))
+    } else if (r == rows & c == 1){
+      neighborcoords <- rbind(c(r-1,c),c(r-1,c+1),c(r,c+1))
+    } else if (r == 1 & c == columns) {
+      neighborcoords <- rbind(c(r,c-1),c(r-1,c),c(r-1,c-1))
+    } else if (r == rows & c == columns) {
+      neighborcoords <- rbind(c(r,c-1),c(r-1,c),c(r-1,c-1))
+    } else if (r == 1) {
+      neighborcoords <- rbind(c(r,c-1),c(r+1,c-1),c(r+1,c), c(r+1,c+1), c(r,c+1))
+    } else if (r == rows) {
+      neighborcoords <- rbind(c(r,c-1),c(r-1,c-1),c(r-1,c),c(r-1,c+1),c(r,c+1))
+    } else if (c == 1) {
+      neighborcoords <- rbind(c(r-1,c),c(r-1,c+1),c(r,c+1),c(r+1,c+1),c(r+1,c))
+    } else if (c == columns) {
+      neighborcoords <- rbind(c(r-1,c),c(r-1,c-1),c(r,c-1),c(r+1,c-1),c(r+1,c))
+    } else {
+      neighborcoords <- rbind(c(r-1,c-1),c(r-1,c),c(r-1,c+1),c(r,c-1),c(r,c+1),c(r+1,c-1),c(r+1,c),c(r+1,c+1))
+    }
+    
+    neighborvals <- world[(neighborcoords[,2]-1)*rows+neighborcoords[,1]]
+    self <- world[r,c]
+    propsim <- sum(neighborvals == self)/sum(neighborvals != 0)
+    if (sum(neighborvals != 0) == 0) {
+      propsim <- 1
+    }
+    n <- n + propsim
+    numPeople <- numPeople + 1
+  }
+  
+}
+
+averagePropSim <- n/(numPeople)
+averagePropSimBefore <- nBefore/numPeopleBefore
+print(averagePropSimBefore)
+print(averagePropSim)
+averagePropSimBefore <- nBefore/numPeopleBefore
 ```
 
